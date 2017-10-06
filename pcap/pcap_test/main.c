@@ -118,24 +118,26 @@ void callback(u_char *useless, const struct pcap_pkthdr *pkthdr,
 
 int main(int argc, char **argv){
 
+    // pcap_t *handle;
     char *dev;
     char *net;
     char *mask;
 
     bpf_u_int32 netp;
     bpf_u_int32 maskp;
-    char errbuf[PCAP_ERRBUF_SIZE];
+    char errbuf[PCAP_ERRBUF_SIZE]; //error string
 
     struct pcap_pkthdr hdr;
     struct in_addr net_addr, mask_addr;
     struct ether_header *eptr;
     const u_char *packet;
 
-    struct bpf_program fp;
+    struct bpf_program fp; //the compiled filter
 
     pcap_t *pcd; //packet capture descriptor
 
     dev = pcap_lookupdev(errbuf);
+
     if(dev == NULL) {
         printf("%s\n",errbuf);
         exit(1);
