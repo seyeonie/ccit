@@ -6,5 +6,4 @@ LIBS += -lpcap
 SOURCES += \
     main.c
 
-HEADERS += \
-    expacket.h
+HEADERS +=

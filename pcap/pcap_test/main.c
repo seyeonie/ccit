@@ -12,7 +12,6 @@
 #include <netinet/tcp.h>
 #include <net/ethernet.h>
 
-#define PROMISCUOUS 1
 #define NONPROMISCUOUS 0
 
 struct ip *iph; //ip header struct
@@ -99,6 +98,7 @@ void callback(u_char *useless, const struct pcap_pkthdr *pkthdr,
         while(length--) {
 
             printf("%02x", *(packet++));
+
             if ((++chcnt % 16) == 0)
                 printf("\n");
 
@@ -118,57 +118,65 @@ void callback(u_char *useless, const struct pcap_pkthdr *pkthdr,
 
 int main(int argc, char **argv){
 
-    // pcap_t *handle;
+    pcap_t *handle;
     char *dev;
-    char *net;
-    char *mask;
-
-    bpf_u_int32 netp;
-    bpf_u_int32 maskp;
+    char *net, mask;
     char errbuf[PCAP_ERRBUF_SIZE]; //error string
+    int nwork; //network infomation
+
+    bpf_u_int32 netp, maskp;
 
     struct pcap_pkthdr hdr;
     struct in_addr net_addr, mask_addr;
-    struct ether_header *eptr;
-    const u_char *packet;
 
     struct bpf_program fp; //the compiled filter
 
-    pcap_t *pcd; //packet capture descriptor
-
+    //define the device
     dev = pcap_lookupdev(errbuf);
 
     if(dev == NULL) {
+        printf("Couldn't find default dev : %s\n",errbuf);
+        exit(1);
+    }
+
+    printf("dev : %s\n", dev);
+
+    nwork = pcap_lookupnet(dev,&netp,maskp,errbuf);
+
+    if (nwork == -1){
         printf("%s\n",errbuf);
         exit(1);
     }
 
     net_addr.s_addr = netp;
+    net = inet_ntoa(net_addr);
+    printf("NET: %s\n",net);
 
-    printf("DEV: %s\n", dev);
+    mask_addr.s_addr = maskp;
+    mask = inet_ntoa(mask_addr);
+    printf("MASK : %s\n",mask);
+    printf("----------------------\n");
 
-    pcd = pcap_open_live(dev, BUFSIZ, NONPROMISCUOUS, -1, errbuf);
+    handle = pcap_open_live(dev, BUFSIZ, NONPROMISCUOUS, -1, errbuf);
 
-    if (pcd == NULL) {
+    if (handle == NULL) {
 
         printf("%s\n", errbuf);
         exit(1);
     }
 
-    if(pcap_compile(pcd, &fp, argv[2],0,netp) == -1){
+    if(pcap_compile(handle, &fp, argv[2],0,netp) == -1){
 
         printf("compile error\n");
         exit(1);
     }
 
-    if(pcap_setfilter(pcd, &fp) == -1) {
+    if(pcap_setfilter(handle, &fp) == -1) {
 
         printf("setfilter error\n");
         exit(0);
     }
 
-    pcap_loop(pcd, atoi(argv[1]), callback, NULL);
-
-
+    pcap_loop(handle, atoi(argv[1]), callback, NULL);
 
 }
