@@ -10,58 +10,16 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <net/ethernet.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 
-#define NONPROMISCUOUS 0
+#define FILTER_RULE "host 192.168.0.12"
+#define PCAP_SNAPSHOT 1024
+#define PCAP_TIMEOUT 100
 
 struct ip *iph; //ip header struct
 
 struct tcphdr *tcph; //tcp header struct
-
-/*struct tcphdr {
-
-    u_int16_t th_sport;     // source port
-    u_int16_t th_dport;     // destination port //
-
-};
-
-struct ip {
-
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-    unsigned int ip_hl:4;       // header length //
-    unsigned int ip_v:4;        // version //
-#endif
-
-#if __BYTE_ORDER == __BIG_ENDIAN
-    unsigned int ip_v:4;        // version //
-    unsigned int ip_hl:4;       // header length //
-#endif
-    u_int8_t ip_tos;            // type of service //
-    u_short ip_len;         // total length //
-
-#define IP_OFFMASK 0x1fff       // mask for fragmenting bits //
-    u_int8_t ip_ttl;            // time to live //
-    u_int8_t ip_p;          // protocol //
-    u_short ip_sum;         // checksum //
-    struct in_addr ip_src, ip_dst;  // source and dest address //
-
-};
-
-// ip, tcp header file => /usr/include/netinet
-
-
-*/
-
-/*
-struct ethhdr
-{
-    unsigned char   h_dest[ETH_ALEN];   // destination eth addr //
-    unsigned char   h_source[ETH_ALEN]; // source ether addr    //
-    unsigned short  h_proto;            // packet type ID field //
-};
-
-// ethernet header file => /usr/include/linux/if_ether.h
-
-*/
 
 void callback(u_char *useless, const struct pcap_pkthdr *pkthdr,
               const u_char *packet) {
@@ -119,18 +77,14 @@ int main(int argc, char **argv){
 
     pcap_t *handle;
     char *dev;
-    char *net, mask;
+    bpf_u_int32 netp;
+
     char errbuf[PCAP_ERRBUF_SIZE]; //error string
-    int nwork; //network infomation
-
-    bpf_u_int32 netp, maskp;
-
-    struct pcap_pkthdr hdr;
-    struct in_addr net_addr, mask_addr;
 
     struct bpf_program fp; //the compiled filter
 
     //define the device
+
     dev = pcap_lookupdev(errbuf);
 
     if(dev == NULL) {
@@ -140,23 +94,7 @@ int main(int argc, char **argv){
 
     printf("dev : %s\n", dev);
 
-    nwork = pcap_lookupnet(dev,&netp,maskp,errbuf);
-
-    if (nwork == -1){
-        printf("%s\n",errbuf);
-        exit(1);
-    }
-
-    net_addr.s_addr = netp;
-    net = inet_ntoa(net_addr);
-    printf("NET: %s\n",net);
-
-    mask_addr.s_addr = maskp;
-    mask = inet_ntoa(mask_addr);
-    printf("MASK : %s\n",mask);
-    printf("----------------------\n");
-
-    handle = pcap_open_live(dev, BUFSIZ, NONPROMISCUOUS, -1, errbuf);
+    handle = pcap_open_live(dev, PCAP_SNAPSHOT, 1 , PCAP_TIMEOUT, errbuf);
 
     if (handle == NULL) {
 
@@ -164,7 +102,7 @@ int main(int argc, char **argv){
         exit(1);
     }
 
-    if(pcap_compile(handle, &fp, argv[2],0,netp) == -1){
+    if(pcap_compile(handle, &fp, FILTER_RULE,0,netp) == -1){
 
         printf("compile error\n");
         exit(1);
@@ -173,9 +111,15 @@ int main(int argc, char **argv){
     if(pcap_setfilter(handle, &fp) == -1) {
 
         printf("setfilter error\n");
-        exit(0);
+        exit(1);
     }
 
-    pcap_loop(handle, atoi(argv[1]), callback, NULL);
+    if(pcap_loop(handle, -1, callback, NULL) == -1) {
+
+       exit(1);
+    }
+
+    pcap_close(handle);
+    return 1;
 
 }
