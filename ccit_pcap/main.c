@@ -17,8 +17,19 @@
 #define PCAP_SNAPSHOT 1024
 #define PCAP_TIMEOUT 100
 
-struct ip *iph; //ip header struct
+typedef struct mac_address{
 
+    u_char byte1;
+    u_char byte2;
+    u_char byte3;
+    u_char byte4;
+    u_char byte5;
+    u_char byte6;
+
+}macaddress;
+
+
+struct ip *iph; //ip header struct
 struct tcphdr *tcph; //tcp header struct
 
 void callback(u_char *useless, const struct pcap_pkthdr *pkthdr,
@@ -30,24 +41,92 @@ void callback(u_char *useless, const struct pcap_pkthdr *pkthdr,
     int chcnt = 0;
     int length = pkthdr->len;
 
-    ep = (struct ether_header *)packet; //bring ethernet header
+    //MAC address save space
+
+    macaddress* Srcmac;
+    macaddress* Dstmac;
+
+
+    //bring ethernet header
+
+    ep = (struct ether_header *)packet;
+
+    //Struct Ethernet header
+    //DestinationAddress * SourceAddress * Packet
+    // 6 byte 6byte 2byte
+
+    Dstmac=(macaddress*)packet;
+    Srcmac=(macaddress*)(packet+6);
+
 
     packet += sizeof(struct ether_header);
+
     ether_type = ntohs(ep->ether_type);
 
-    if(ether_type == ETHERTYPE_IP){ //if, ip packet
+    iph = (struct ip *)packet;
 
-        iph = (struct ip *)packet;
-        printf("IP packet\n");
-        printf("Src Address : %s\n", inet_ntoa(iph->ip_src));
-        printf("Dst Address : %s\n", inet_ntoa(iph->ip_dst));
+    if(ether_type == ETHERTYPE_IP){
+
+        //if, ip packet
+
 
         //if, TCP data
+
+
         if (iph->ip_p == IPPROTO_TCP) {
 
             tcph = (struct tcp *)(packet + iph->ip_hl * 4);
-            printf("Src Port : %d\n", ntohs(tcph->source));
-            printf("Dst Port : %d\n", ntohs(tcph->dest));
+
+
+            //struct ip header
+            // version * IHL(Header Length) * TOS * Total_length
+
+            //32bitword = 32/8 = 4byte
+            //ip_hl = 5 ~15 byte
+            //ip_hl * 4byte = ip_header_length
+            //packet point = tcp source port
+
+            //print Mac Address
+
+            printf("##############################################\n");
+
+            printf("**Mac Address Session\n");
+
+            printf("Source MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+                   Srcmac->byte1,
+                   Srcmac->byte2,
+                   Srcmac->byte3,
+                   Srcmac->byte4,
+                   Srcmac->byte5,
+                   Srcmac->byte6	);
+            printf("Destinationmac MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+                   Dstmac->byte1,
+                   Dstmac->byte2,
+                   Dstmac->byte3,
+                   Dstmac->byte4,
+                   Dstmac->byte5,
+                   Dstmac->byte6	);
+
+
+            //print IP Address
+
+            printf("**IP Address Session\n");
+
+            // inet_ntoa = Big-Endian 32bit -> Dotted-Decimal Notation
+            printf("Source IP Address : %s\n", inet_ntoa(iph->ip_src));
+            printf("Destination IP Address : %s\n", inet_ntoa(iph->ip_dst));
+
+            //print TCP port
+
+            printf("**TCP Port Session\n");
+
+            printf("Source Tcp port : %d\n", ntohs(tcph->th_sport));
+            printf("Destination IP port : %d\n", ntohs(tcph->th_dport));
+
+            printf("##############################################");
+            printf("\n\n\n");
+
+
         }
 
         // packet data print
