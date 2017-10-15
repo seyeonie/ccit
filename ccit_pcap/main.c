@@ -7,7 +7,6 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-#include "expacket.h"
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <net/ethernet.h>
