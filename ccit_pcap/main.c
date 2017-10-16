@@ -13,7 +13,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#define FILTER_RULE "host 192.168.0.12"
+#define FILTER_RULE "host 192.168.0.161"
 #define PCAP_SNAPSHOT 1024
 #define PCAP_TIMEOUT 100
 
@@ -131,9 +131,11 @@ void callback(u_char *useless, const struct pcap_pkthdr *pkthdr,
 
         // packet data print
 
+        printf("**PACKET Session\n");
+
         while(length--) {
 
-            printf("%02x", *(packet++));
+            printf("%02x ", *(packet++));
 
             if ((++chcnt % 16) == 0)
                 printf("\n");
@@ -156,13 +158,13 @@ int main(int argc, char **argv){
 
     pcap_t *handle;
     char *dev;
-    bpf_u_int32 netp;
+    bpf_u_int32 netmask;
 
     char errbuf[PCAP_ERRBUF_SIZE]; //error string
 
     struct bpf_program fp; //the compiled filter
 
-    //define the device
+    //Preparation
 
     dev = pcap_lookupdev(errbuf);
 
@@ -173,6 +175,8 @@ int main(int argc, char **argv){
 
     printf("dev : %s\n", dev);
 
+    //Open
+
     handle = pcap_open_live(dev, PCAP_SNAPSHOT, 1 , PCAP_TIMEOUT, errbuf);
 
     if (handle == NULL) {
@@ -181,24 +185,31 @@ int main(int argc, char **argv){
         exit(1);
     }
 
-    if(pcap_compile(handle, &fp, FILTER_RULE,0,netp) == -1){
+    //Filtering
+
+    if(pcap_compile(handle, &fp, FILTER_RULE,0,netmask) < 0){
 
         printf("compile error\n");
         exit(1);
     }
 
-    if(pcap_setfilter(handle, &fp) == -1) {
+    if(pcap_setfilter(handle, &fp) < 0) {
 
         printf("setfilter error\n");
         exit(1);
     }
 
-    if(pcap_loop(handle, -1, callback, NULL) == -1) {
+    //Read
+
+    if(pcap_loop(handle, -1, callback, 0) < 0) {
 
        exit(1);
     }
 
+    //close
+
     pcap_close(handle);
+
     return 1;
 
 }
